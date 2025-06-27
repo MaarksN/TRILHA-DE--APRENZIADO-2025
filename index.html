@@ -1,0 +1,1792 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GRANDE PRÊMIO ULTRA: EDIÇÃO NEON-CHROME (CORRIGIDO)</title>
+
+    <!-- Import maps para Three.js e Firebase -->
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/",
+            "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
+            "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
+            "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"
+        }
+    }
+    </script>
+
+    <!-- Tone.js para áudio -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+
+    <!-- Tailwind CSS para estilos -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --aa-green-darker: #00ff9b;
+            --aa-orange: #ff7b00;
+            --cyber-pink: #ff00ff;
+            --cyber-blue: #00ffff;
+        }
+
+        body {
+            font-family: 'Orbitron', sans-serif;
+            overflow: hidden;
+            background-color: #0d011a;
+            color: var(--cyber-blue);
+        }
+
+        .text-shadow-glow {
+            text-shadow: 0 0 5px currentColor, 0 0 10px currentColor, 0 0 15px var(--cyber-pink);
+        }
+
+        .pulse {
+            animation: pulse-animation 1.5s infinite;
+        }
+
+        @keyframes pulse-animation {
+            0% { transform: scale(1); box-shadow: 0 0 10px 0 var(--cyber-pink); }
+            50% { transform: scale(1.05); box-shadow: 0 0 25px 10px var(--cyber-pink); }
+            100% { transform: scale(1); box-shadow: 0 0 10px 0 var(--cyber-pink); }
+        }
+
+        #game-canvas-container canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .modal-bg {
+            background-color: rgba(13, 1, 26, 0.9);
+            backdrop-filter: blur(5px);
+        }
+
+        .cyber-button {
+             background: linear-gradient(45deg, var(--cyber-pink), var(--cyber-blue));
+             border: 2px solid var(--cyber-blue);
+             box-shadow: 0 0 15px var(--cyber-pink);
+             transition: all 0.3s ease;
+        }
+        .cyber-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 25px var(--cyber-pink);
+        }
+         .cyber-button:disabled {
+            background: #555;
+            border-color: #777;
+            box-shadow: none;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .modal-content {
+            background: rgba(20, 2, 40, 0.9);
+            border: 2px solid var(--cyber-blue);
+            box-shadow: 0 0 20px var(--cyber-pink);
+        }
+    </style>
+</head>
+
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div class="container mx-auto max-w-6xl">
+        <h2 class="text-4xl md:text-5xl font-black text-center mb-2 uppercase text-shadow-glow">
+            GRANDE PRÊMIO <span style="color:var(--aa-green-darker);">ULTRA</span>
+        </h2>
+        <p class="text-center text-gray-400 mb-6 font-bold">EDIÇÃO NEON-CHROME</p>
+
+        <div id="game-wrapper" class="bg-black p-2 md:p-4 rounded-xl shadow-2xl border-2 border-pink-500 text-center flex flex-col items-center justify-center relative overflow-hidden">
+
+            <div id="lobby-screen" class="w-full flex flex-col items-center">
+                <h3 class="text-2xl font-bold mb-4 text-shadow-glow">ESCOLHA SEUS PILOTOS (ATÉ 5)</h3>
+                <div id="player-selection" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-4xl mx-auto"></div>
+                <div class="flex space-x-4 mt-8">
+                     <button id="startGameBtn" class="cyber-button text-white font-bold py-3 px-8 rounded-lg text-xl uppercase tracking-wider" disabled>
+                        Iniciar Corrida
+                    </button>
+                    <button id="leaderboardBtn" class="cyber-button bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-lg text-xl uppercase tracking-wider">
+                        Recordes
+                    </button>
+                </div>
+            </div>
+
+            <div id="game-screen" class="hidden w-full h-[600px] relative">
+                <div id="game-canvas-container" class="absolute inset-0 z-0 rounded-lg overflow-hidden"></div>
+                <div id="game-ui-overlay" class="absolute top-0 left-0 w-full h-full p-2 md:p-4 flex flex-col justify-between z-10 pointer-events-none">
+                    <div class="flex justify-between items-start text-white bg-black bg-opacity-60 px-4 py-2 rounded-lg">
+                        <div>
+                            <h3 class="text-lg md:text-2xl font-bold">FASE <span id="fase-atual">1</span></h3>
+                            <p class="text-sm md:text-base">META: <span id="meta-pontos">0</span></p>
+                            <p class="text-sm md:text-base">TEMPO: <span id="tempo-corrida">0.00</span>s</p>
+                        </div>
+                        <div class="text-right">
+                             <h3 class="text-lg md:text-2xl font-bold">PONTUAÇÃO TOTAL</h3>
+                             <p class="text-xl md:text-3xl font-black" style="color: var(--aa-green-darker);"><span id="pontuacao-total">0</span></p>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-end">
+                         <button id="cameraToggleBtn" class="cyber-button text-white font-bold py-2 px-4 rounded-lg pointer-events-auto">CÂMERA</button>
+                         <div id="speedometer" class="text-4xl font-black text-shadow-glow">0 KM/H</div>
+                         <div class="w-24"></div> <!-- Espaçador -->
+                    </div>
+                    <div id="player-scores" class="flex justify-center gap-2 md:gap-4 w-full"></div>
+                </div>
+            </div>
+
+            <div id="modal-container" class="fixed inset-0 z-30 modal-bg items-center justify-center flex transition-opacity duration-300 ease-in-out opacity-0 pointer-events-none">
+                <div id="leaderboard-modal" class="modal-content-wrapper flex-col modal-content p-8 rounded-lg shadow-xl w-full max-w-md transform transition-all duration-300 ease-in-out scale-95 opacity-0 pointer-events-none">
+                    <h2 class="text-3xl font-bold text-shadow-glow text-center mb-6">🏆 Recordes 🏆</h2>
+                    <div id="leaderboard-list-container" class="max-h-80 overflow-y-auto">
+                        <ol id="leaderboard-list" class="list-decimal list-inside space-y-2 text-lg"></ol>
+                    </div>
+                    <button id="closeLeaderboardBtn" class="mt-8 w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Fechar</button>
+                </div>
+
+                <div id="quiz-modal" class="modal-content-wrapper flex-col modal-content p-8 rounded-lg shadow-xl w-full max-w-lg transform transition-all duration-300 ease-in-out scale-95 opacity-0 pointer-events-none">
+                    <h2 class="text-3xl font-bold mb-2 text-shadow-glow" id="quiz-title">QUIZ DA FASE!</h2>
+                    <p class="text-lg mb-4" id="quiz-subtitle">Responda corretamente para avançar!</p>
+                    <div id="quiz-question-container">
+                        <h3 class="text-2xl font-bold mb-4" id="quiz-question"></h3>
+                        <div id="quiz-answers" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                 <div id="save-score-modal" class="modal-content-wrapper flex-col modal-content p-8 rounded-lg shadow-xl w-full max-w-md text-center transform transition-all duration-300 ease-in-out scale-95 opacity-0 pointer-events-none">
+                    <h2 class="text-3xl font-bold mb-2" id="game-over-title">Fim de Jogo!</h2>
+                    <p class="text-lg mb-4">Sua pontuação final foi: <span id="final-score" class="font-bold text-shadow-glow" style="color: var(--aa-orange);"></span></p>
+                    <input type="text" id="playerNameInput" placeholder="Digite seu nome de piloto" class="text-black w-full p-2 rounded mb-4 bg-gray-300 focus:outline-none focus:ring-2 focus:ring-pink-500" maxlength="10">
+                    <button id="submitScoreBtn" class="w-full cyber-button text-white font-bold py-2 px-4 rounded">Salvar Pontuação</button>
+                     <button id="playAgainFromSaveBtn" class="mt-4 w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Jogar Novamente</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script type="module">
+    // --- MÓDULOS ESSENCIAIS ---
+    import * as THREE from 'three';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+    import { FilmPass } from 'three/addons/postprocessing/FilmPass.js';
+    import { initializeApp } from 'firebase/app';
+    import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+    import { getFirestore, collection, addDoc, query, getDocs, limit, serverTimestamp, orderBy } from 'firebase/firestore';
+
+    // --- ELEMENTOS DO DOM ---
+    const lobbyScreen = document.getElementById('lobby-screen');
+    const gameScreen = document.getElementById('game-screen');
+    const playerSelectionContainer = document.getElementById('player-selection');
+    const startBtn = document.getElementById('startGameBtn');
+    const leaderboardBtn = document.getElementById('leaderboardBtn');
+    const canvasContainer = document.getElementById('game-canvas-container');
+    const modalContainer = document.getElementById('modal-container');
+    const leaderboardModal = document.getElementById('leaderboard-modal');
+    const closeLeaderboardBtn = document.getElementById('closeLeaderboardBtn');
+    const quizModal = document.getElementById('quiz-modal');
+    const quizTitleEl = document.getElementById('quiz-title');
+    const quizSubtitleEl = document.getElementById('quiz-subtitle');
+    const quizQuestionContainerEl = document.getElementById('quiz-question-container');
+    const quizQuestionEl = document.getElementById('quiz-question');
+    const quizAnswersEl = document.getElementById('quiz-answers');
+    const saveScoreModal = document.getElementById('save-score-modal');
+    const gameOverTitleEl = document.getElementById('game-over-title');
+    const finalScoreEl = document.getElementById('final-score');
+    const playerNameInput = document.getElementById('playerNameInput');
+    const submitScoreBtn = document.getElementById('submitScoreBtn');
+    const playAgainFromSaveBtn = document.getElementById('playAgainFromSaveBtn');
+    const tempoCorridaEl = document.getElementById('tempo-corrida');
+    const pontuacaoTotalEl = document.getElementById('pontuacao-total');
+    const faseAtualEl = document.getElementById('fase-atual');
+    const metaPontosEl = document.getElementById('meta-pontos');
+    const playerScoresContainer = document.getElementById('player-scores');
+    const cameraToggleBtn = document.getElementById('cameraToggleBtn');
+    const speedometerEl = document.getElementById('speedometer');
+
+    // --- ESTADO DO JOGO E CONFIGURAÇÕES ---
+    let gameState = 'lobby';
+    let faseAtual = 0, animationFrameId, jogadores = [];
+    let obstaculos = [], coletaveis = [], powerups = [], aiCars = [], turbos = [], emps = [];
+    const keys = {}, clock = new THREE.Clock();
+    let db, auth;
+    let phaseTimer = 0;
+    let cameraMode = 0;
+
+    // --- SETUP 3D ---
+    let scene, camera, renderer, composer, road, starField, rain;
+    let bloomPass, filmPass, radialBlurPass;
+    const gameArea = { width: 100, depth: 400 };
+
+    // --- CONFIGURAÇÕES DO JOGO ---
+    const FASES = [
+        { nivel: 1,  oP: 200, vI: 1.2, cO: 0.010, cC: 0.015, cP: 0.002, cIA: 0.008, cT: 0.003, cE: 0.001, cChuva: 0.1 },
+        { nivel: 2,  oP: 300, vI: 1.4, cO: 0.012, cC: 0.012, cP: 0.003, cIA: 0.012, cT: 0.004, cE: 0.002, cChuva: 0.15 },
+        { nivel: 3,  oP: 400, vI: 1.6, cO: 0.015, cC: 0.011, cP: 0.004, cIA: 0.015, cT: 0.005, cE: 0.002, cChuva: 0.2 },
+        { nivel: 4,  oP: 500, vI: 1.8, cO: 0.018, cC: 0.010, cP: 0.005, cIA: 0.018, cT: 0.006, cE: 0.003, cChuva: 0.25 },
+        { nivel: 5,  oP: 650, vI: 2.0, cO: 0.022, cC: 0.009, cP: 0.005, cIA: 0.022, cT: 0.007, cE: 0.003, cChuva: 0.3 },
+        { nivel: 6,  oP: 800, vI: 2.2, cO: 0.025, cC: 0.008, cP: 0.006, cIA: 0.025, cT: 0.008, cE: 0.004, cChuva: 0.4 },
+        { nivel: 7,  oP: 1000,vI: 2.4, cO: 0.028, cC: 0.007, cP: 0.006, cIA: 0.028, cT: 0.009, cE: 0.004, cChuva: 0.5 },
+        { nivel: 8,  oP: 1250,vI: 2.6, cO: 0.031, cC: 0.006, cP: 0.007, cIA: 0.031, cT: 0.010, cE: 0.005, cChuva: 0.6 },
+        { nivel: 9,  oP: 1500,vI: 2.8, cO: 0.035, cC: 0.005, cP: 0.007, cIA: 0.035, cT: 0.011, cE: 0.005, cChuva: 0.7 },
+        { nivel: 10, oP: 2000,vI: 3.1, cO: 0.040, cC: 0.005, cP: 0.008, cIA: 0.040, cT: 0.012, cE: 0.006, cChuva: 0.8 }
+    ];
+
+    const JOGADORES_CONFIG = [
+        { id: 1, cor: 0x00ff9b, keys: ['arrowleft', 'arrowright', 'arrowdown'] },
+        { id: 2, cor: 0x00ffff, keys: ['a', 'd', 's'] },
+        { id: 3, cor: 0xff7b00, keys: ['j', 'l', 'k'] },
+        { id: 4, cor: 0xff00ff, keys: ['4', '6', '5'] },
+        { id: 5, cor: 0x8A2BE2, keys: ['8', '9', '2'] }
+    ];
+
+    // --- INICIALIZAÇÃO GERAL ---
+    function init() {
+        initFirebase();
+        setupLobby();
+        init3D();
+        setupEventListeners();
+    }
+
+    async function initFirebase() {
+        const firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
+        if (!firebaseConfigStr) {
+            console.warn("Configuração do Firebase não encontrada.");
+            leaderboardBtn.disabled = true;
+            return;
+        }
+        try {
+            const firebaseConfig = JSON.parse(firebaseConfigStr);
+            const app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            onAuthStateChanged(auth, async (user) => {
+                if (!user) await signInAnonymously(auth);
+            });
+        } catch (error) {
+            console.error("Erro ao inicializar Firebase:", error);
+            leaderboardBtn.disabled = true;
+        }
+    }
+
+    const soundManager = {
+        isInitialized: false, synth: null, kick: null, noise: null, bgMusic: null, rainSound: null, driftSound: null,
+        init() {
+            if (this.isInitialized) return;
+            this.synth = new Tone.PolySynth(Tone.Synth).toDestination();
+            this.kick = new Tone.MembraneSynth().toDestination();
+            this.noise = new Tone.NoiseSynth().toDestination();
+            const bass = new Tone.MonoSynth({ oscillator: { type: 'fmsquare' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.8 } }).toDestination();
+            this.bgMusic = new Tone.Pattern((time, note) => { bass.triggerAttackRelease(note, '8n', time); }, ["C2", "C2", "F2", "F2", "G#1", "G#1", "G1", "G1"], "up");
+            this.bgMusic.interval = "4n";
+            this.rainSound = new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 1, decay: 0.5, sustain: 1, release: 1 }, volume: -25 }).toDestination();
+            this.driftSound = new Tone.NoiseSynth({ noise: { type: 'pink' }, envelope: { attack: 0.1, decay: 0.3, sustain: 1, release: 0.5 }, volume: -20 }).toDestination();
+            this.isInitialized = true;
+        },
+        async startAudioContext() { if (Tone.context.state === 'suspended') await Tone.start(); },
+        playCollect() { if(this.isInitialized) this.synth.triggerAttackRelease("C5", "16n"); },
+        playShield() { if(this.isInitialized) this.synth.triggerAttackRelease(["C4", "E4", "G4"], "8n"); },
+        playCrash() { if(this.isInitialized) this.kick.triggerAttackRelease("C1", "4n"); },
+        playTurbo() { if(this.isInitialized) this.synth.triggerAttackRelease("G5", "8n"); },
+        playQuizCorrect() { if(this.isInitialized) this.synth.triggerAttackRelease("E5", "8n"); },
+        playQuizWrong() { if(this.isInitialized) this.synth.triggerAttackRelease("C3", "8n"); },
+        playEMP() { if(this.isInitialized) new Tone.FMSynth().toDestination().triggerAttackRelease("C2", "1s"); },
+        startDrift() { if(this.isInitialized && this.driftSound.state === 'stopped') this.driftSound.triggerAttack(); },
+        stopDrift() { if(this.isInitialized) this.driftSound.triggerRelease(); },
+        toggleMusic(state) {
+            if (!this.isInitialized) this.init();
+            this.startAudioContext();
+            if (state) { this.bgMusic.start(0); Tone.Transport.start(); } else { Tone.Transport.stop(); this.bgMusic.stop(); }
+        },
+        toggleRainSound(state) {
+            if (!this.isInitialized) this.init();
+            if (state && this.rainSound.state === 'stopped') this.rainSound.triggerAttack();
+            else this.rainSound.triggerRelease();
+        },
+        createEngineSound() {
+            if(!this.isInitialized) this.init();
+            const engine = new Tone.AMSynth({ volume: -25 }).toDestination();
+            engine.triggerAttack("C1");
+            return engine;
+        },
+        updateEngineSound(engine, speedRatio) { if (engine) engine.frequency.rampTo(40 + (speedRatio * 80), 0.1); },
+        stopEngineSound(engine) { if (engine) engine.triggerRelease(); }
+    };
+
+    const quizManager = {
+        questions: [
+            { q: "O que é 'repasse de veículos'?", a: ["Venda para consumidor final", "Venda de veículos entre lojas (B2B)", "Leilão público"], c: 1 },
+            { q: "Qual a vantagem da nossa plataforma para um lojista?", a: ["Garantia extendida", "Acesso rápido a novo estoque", "Financiamento ao consumidor"], c: 1 },
+            { q: "Qual o foco da plataforma ARREMAQ?", a: ["Carros populares", "Máquinas pesadas e agrícolas", "Barcos e Lanchas"], c: 1 },
+            { q: "Como a alta da taxa SELIC impacta o negócio?", a: ["Positivo, carros ficam mais baratos", "Negativo, crédito fica mais caro", "Nulo"], c: 1 },
+            { q: "O que é 'Cross-sell'?", a: ["Vender carros com problemas", "Oferecer serviços adicionais", "Manobra de vendas ilegal"], c: 1 }
+        ],
+        activeQuiz: null, NUM_QUESTIONS_PER_QUIZ: 5, MIN_PASS_PERCENTAGE: 0.6,
+        startPhaseQuiz() {
+            gameState = 'quiz';
+            soundManager.toggleMusic(false);
+            const shuffled = [...this.questions].sort(() => 0.5 - Math.random());
+            this.activeQuiz = { questions: shuffled.slice(0, this.NUM_QUESTIONS_PER_QUIZ), currentQIndex: 0, correctAnswers: 0, };
+
+            // Garante que outros modais estejam escondidos
+            [leaderboardModal, saveScoreModal].forEach(modal => {
+                modal.classList.remove('flex', 'opacity-100', 'scale-100');
+                modal.classList.add('opacity-0', 'scale-95');
+                modal.style.pointerEvents = 'none';
+            });
+
+            // Mostra o container e o quiz modal
+            modalContainer.classList.remove('opacity-0', 'pointer-events-none');
+            modalContainer.classList.add('opacity-100');
+            quizModal.classList.remove('opacity-0', 'scale-95', 'pointer-events-none');
+            quizModal.classList.add('flex', 'opacity-100', 'scale-100');
+            quizModal.style.pointerEvents = 'auto';
+
+            this.showNextQuestion();
+        },
+        showNextQuestion() {
+            if (this.activeQuiz.currentQIndex < this.activeQuiz.questions.length) {
+                const qData = this.activeQuiz.questions[this.activeQuiz.currentQIndex];
+                quizTitleEl.textContent = `QUIZ - Pergunta ${this.activeQuiz.currentQIndex + 1} de ${this.NUM_QUESTIONS_PER_QUIZ}`;
+                quizSubtitleEl.textContent = `Acerte ${this.MIN_PASS_PERCENTAGE * 100}% para avançar`;
+                quizQuestionEl.textContent = qData.q;
+                quizAnswersEl.innerHTML = '';
+                qData.a.forEach((answer, index) => {
+                    const button = document.createElement('button');
+                    button.textContent = answer;
+                    button.className = 'w-full text-left p-3 bg-gray-700 hover:bg-blue-600 rounded transition-colors';
+                    button.onclick = () => this.resolveAnswer(index);
+                    quizAnswersEl.appendChild(button);
+                });
+                quizQuestionContainerEl.style.display = 'block';
+            } else { this.endQuizSession(); }
+        },
+        resolveAnswer(selectedIndex) {
+            const currentQuestion = this.activeQuiz.questions[this.activeQuiz.currentQIndex];
+            if (selectedIndex === currentQuestion.c) { soundManager.playQuizCorrect(); this.activeQuiz.correctAnswers++; }
+            else { soundManager.playQuizWrong(); }
+            this.activeQuiz.currentQIndex++;
+            this.showNextQuestion();
+        },
+        endQuizSession() {
+            quizQuestionContainerEl.style.display = 'none';
+            const score = this.activeQuiz.correctAnswers / this.activeQuiz.questions.length;
+            if (score >= this.MIN_PASS_PERCENTAGE) {
+                quizTitleEl.textContent = "QUIZ PASSOU!";
+                quizSubtitleEl.textContent = `Você acertou ${this.activeQuiz.correctAnswers} de ${this.activeQuiz.questions.length}. Próxima fase em 3s...`;
+                faseAtual++;
+                setTimeout(() => {
+                    quizModal.classList.remove('flex', 'opacity-100', 'scale-100');
+                    quizModal.classList.add('opacity-0', 'scale-95');
+                    quizModal.style.pointerEvents = 'none';
+
+                    const isSaveScoreNext = faseAtual >= FASES.length;
+
+                    // Só esconde o container se o próximo modal (saveScore) não for ser exibido
+                    if (!isSaveScoreNext) {
+                        modalContainer.classList.remove('opacity-100');
+                        modalContainer.classList.add('opacity-0', 'pointer-events-none');
+                    }
+                    // Se showSaveScoreModal for chamado, ele cuidará de tornar o modalContainer visível.
+
+                    if (faseAtual >= FASES.length) {
+                         showSaveScoreModal(jogadores.reduce((acc, p) => acc + p.pontos, 0), "Parabéns, você completou o jogo!");
+                    } else { iniciarFase(); }
+                }, 3000);
+            } else {
+                quizTitleEl.textContent = "QUIZ FALHOU!";
+                quizSubtitleEl.textContent = `Você acertou apenas ${this.activeQuiz.correctAnswers}. A corrida termina aqui.`;
+                setTimeout(() => {
+                    quizModal.classList.remove('flex', 'opacity-100', 'scale-100');
+                    quizModal.classList.add('opacity-0', 'scale-95');
+                    quizModal.style.pointerEvents = 'none';
+                    // showSaveScoreModal cuidará da visibilidade do modalContainer
+                    showSaveScoreModal(jogadores.reduce((acc, p) => acc + p.pontos, 0), "Fim de jogo: não atingiu a meta no quiz.");
+                }, 3000);
+            }
+        }
+    };
+
+    function createPlayerCar(color) {
+        const car = new THREE.Group();
+        const carWidth = 7; // Largura total do carro
+        const carHeight = 4; // Altura do corpo principal
+        const carLength = 15; // Comprimento total
+
+        // Materiais
+        const bodyMat = new THREE.MeshStandardMaterial({
+            color,
+            metalness: 0.9,
+            roughness: 0.15,
+            emissive: color,
+            emissiveIntensity: 0.15,
+            envMap: scene ? scene.environment : null,
+            envMapIntensity: 1.0
+        });
+
+        const glassMat = new THREE.MeshStandardMaterial({
+            color: 0x223344, // Vidro escuro azulado
+            metalness: 0.4,
+            roughness: 0.05,
+            transparent: true,
+            opacity: 0.7,
+            envMap: scene ? scene.environment : null,
+            envMapIntensity: 1.5
+        });
+
+        const wheelMat = new THREE.MeshStandardMaterial({
+            color: 0x111111,
+            metalness: 0.1,
+            roughness: 0.8
+        });
+        const tireMat = new THREE.MeshStandardMaterial({
+            color: 0x050505,
+            metalness: 0.0,
+            roughness: 0.7
+        });
+
+
+        // Corpo Principal (ligeiramente mais baixo e aerodinâmico)
+        const mainBodyGeo = new THREE.BoxGeometry(carWidth, carHeight * 0.6, carLength * 0.9);
+        const mainBody = new THREE.Mesh(mainBodyGeo, bodyMat);
+        mainBody.position.y = carHeight * 0.3; // Metade da sua altura
+        mainBody.castShadow = true;
+        mainBody.receiveShadow = true;
+        car.add(mainBody);
+
+        // Capô (parte frontal inclinada)
+        const hoodShape = new THREE.Shape();
+        hoodShape.moveTo(0, 0);
+        hoodShape.lineTo(carLength * 0.3, 0);
+        hoodShape.lineTo(carLength * 0.2, carHeight * 0.2);
+        hoodShape.lineTo(0, carHeight * 0.1);
+        hoodShape.lineTo(0,0);
+        const extrudeSettingsHood = { depth: carWidth * 0.95, bevelEnabled: false };
+        const hoodGeo = new THREE.ExtrudeGeometry(hoodShape, extrudeSettingsHood);
+        const hood = new THREE.Mesh(hoodGeo, bodyMat);
+        hood.rotation.y = -Math.PI / 2;
+        hood.position.set(0, carHeight * 0.6 - (carHeight*0.05) , -carLength * 0.45);
+        hood.castShadow = true;
+        // car.add(hood); // Adiciona um toque, mas pode ser demais para o estilo atual. Vamos simplificar.
+
+        // Cabine (mais integrada)
+        const cabinWidth = carWidth * 0.75;
+        const cabinHeight = carHeight * 0.55;
+        const cabinLength = carLength * 0.4;
+        const cabinGeo = new THREE.BoxGeometry(cabinWidth, cabinHeight, cabinLength);
+        const cabin = new THREE.Mesh(cabinGeo, bodyMat); // Usar bodyMat para a estrutura
+        cabin.position.set(0, carHeight * 0.6 + cabinHeight * 0.5 - (carHeight*0.05), -carLength * 0.05);
+        cabin.castShadow = true;
+        car.add(cabin);
+
+        // "Vidros" da cabine
+        const windshieldGeo = new THREE.PlaneGeometry(cabinWidth * 1.02, cabinHeight * 0.7);
+        const windshield = new THREE.Mesh(windshieldGeo, glassMat);
+        windshield.position.set(0, cabin.position.y + cabinHeight*0.05, cabin.position.z - cabinLength/2 - 0.01);
+        windshield.rotation.x = Math.PI * 0.15; // Inclinação do para-brisa
+        car.add(windshield);
+
+        const rearWindowGeo = new THREE.PlaneGeometry(cabinWidth*1.02, cabinHeight * 0.6);
+        const rearWindow = new THREE.Mesh(rearWindowGeo, glassMat);
+        rearWindow.position.set(0, cabin.position.y + cabinHeight*0.05, cabin.position.z + cabinLength/2 + 0.01);
+        rearWindow.rotation.x = -Math.PI * 0.18; // Inclinação do vidro traseiro
+        car.add(rearWindow);
+
+        const sideWindowGeo = new THREE.PlaneGeometry(cabinLength*1.02, cabinHeight * 0.6);
+        const sideWindowL = new THREE.Mesh(sideWindowGeo, glassMat);
+        sideWindowL.position.set(-cabinWidth/2 - 0.01, cabin.position.y + cabinHeight*0.05, cabin.position.z);
+        sideWindowL.rotation.y = Math.PI/2;
+        car.add(sideWindowL);
+        const sideWindowR = new THREE.Mesh(sideWindowGeo, glassMat);
+        sideWindowR.position.set(cabinWidth/2 + 0.01, cabin.position.y + cabinHeight*0.05, cabin.position.z);
+        sideWindowR.rotation.y = -Math.PI/2;
+        car.add(sideWindowR);
+
+
+        // Rodas
+        const wheelRadius = carHeight * 0.28;
+        const wheelWidth = carWidth * 0.12;
+        const wheelGeo = new THREE.CylinderGeometry(wheelRadius, wheelRadius, wheelWidth, 24);
+
+        const tireDepth = wheelWidth * 1.1; // Pneu ligeiramente mais largo que a roda
+        const tireGeo = new THREE.CylinderGeometry(wheelRadius * 1.1, wheelRadius * 1.1, tireDepth, 24);
+
+
+        const wheelPositions = [
+            new THREE.Vector3(-carWidth / 2 + wheelRadius*0.5, wheelRadius*0.8, carLength / 2 * 0.65), // Front-Left
+            new THREE.Vector3(carWidth / 2 - wheelRadius*0.5, wheelRadius*0.8, carLength / 2 * 0.65),  // Front-Right
+            new THREE.Vector3(-carWidth / 2 + wheelRadius*0.5, wheelRadius*0.8, -carLength / 2 * 0.65), // Rear-Left
+            new THREE.Vector3(carWidth / 2 - wheelRadius*0.5, wheelRadius*0.8, -carLength / 2 * 0.65)  // Rear-Right
+        ];
+
+        wheelPositions.forEach(pos => {
+            const wheelGroup = new THREE.Group();
+
+            const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+            wheel.rotation.z = Math.PI / 2; // Deitar o cilindro
+            wheel.castShadow = true;
+            wheelGroup.add(wheel);
+
+            const tire = new THREE.Mesh(tireGeo, tireMat);
+            tire.rotation.z = Math.PI / 2;
+            tire.castShadow = true;
+            wheelGroup.add(tire); // Adicionar pneu ao grupo da roda
+
+            wheelGroup.position.copy(pos);
+            car.add(wheelGroup);
+        });
+
+        // Ajustar a posição Y geral do carro para que as rodas toquem o "chão" (y=0 no grupo)
+        car.position.y = - (wheelRadius*0.8);
+
+
+        // Luzes (mantendo a lógica anterior, mas ajustando posições)
+        const lightY = mainBody.position.y + (carHeight * 0.6 / 2) * 0.6; // Um pouco acima do centro do corpo
+        const brakeLightDepth = 0.3;
+        const brakeLightSize = 0.8;
+
+        const brakeLightMat = new THREE.MeshStandardMaterial({color: 0xff0000, emissive: 0xcc0000, emissiveIntensity: 0, metalness: 0.1, roughness: 0.5});
+        const brakeLightL = new THREE.Mesh(new THREE.BoxGeometry(brakeLightSize, brakeLightSize*0.5, brakeLightDepth), brakeLightMat.clone());
+        brakeLightL.position.set(-carWidth * 0.3, lightY, carLength / 2 * 0.9 - brakeLightDepth/2 + 0.01);
+        car.add(brakeLightL);
+        const brakeLightR = new THREE.Mesh(new THREE.BoxGeometry(brakeLightSize, brakeLightSize*0.5, brakeLightDepth), brakeLightMat.clone());
+        brakeLightR.position.set(carWidth * 0.3, lightY, carLength / 2 * 0.9 - brakeLightDepth/2 + 0.01);
+        car.add(brakeLightR);
+        car.userData.brakeLights = [brakeLightL.material, brakeLightR.material]; // Controlar material
+
+        const headLightSize = 0.7;
+        const headLightMat = new THREE.MeshStandardMaterial({color: 0xffffdd, emissive: 0xffffaa, emissiveIntensity: 0, metalness: 0.1, roughness: 0.3});
+        const headLightLGeo = new THREE.CylinderGeometry(headLightSize*0.5, headLightSize*0.4, brakeLightDepth, 16);
+        const headLightL = new THREE.Mesh(headLightLGeo, headLightMat.clone());
+        headLightL.position.set(-carWidth * 0.3, lightY, -carLength / 2 * 0.9 + brakeLightDepth/2 - 0.01);
+        headLightL.rotation.x = Math.PI / 2;
+        car.add(headLightL);
+        const headLightR = new THREE.Mesh(headLightLGeo, headLightMat.clone());
+        headLightR.position.set(carWidth * 0.3, lightY, -carLength / 2 * 0.9 + brakeLightDepth/2 - 0.01);
+        headLightR.rotation.x = Math.PI / 2;
+        car.add(headLightR);
+        car.userData.headLights = [headLightL.material, headLightR.material];
+
+        const spotLightIntensity = 30; // Aumentar intensidade para ser mais visível
+        const spotLightDistance = 80;  // Aumentar distância
+        const spotLightAngle = Math.PI / 9; // Ângulo um pouco mais largo
+        const spotLightL = new THREE.SpotLight(0xffffee, 0, spotLightDistance, spotLightAngle, 0.25, 1.5);
+        spotLightL.position.set(-carWidth * 0.3, lightY + 0.5, -carLength / 2 * 0.9 + 0.5);
+        spotLightL.target.position.set(-carWidth * 0.3, lightY - 5, -carLength / 2 * 0.9 - spotLightDistance);
+        car.add(spotLightL);
+        car.add(spotLightL.target);
+
+        const spotLightR = new THREE.SpotLight(0xffffee, 0, spotLightDistance, spotLightAngle, 0.25, 1.5);
+        spotLightR.position.set(carWidth * 0.3, lightY + 0.5, -carLength / 2 * 0.9 + 0.5);
+        spotLightR.target.position.set(carWidth * 0.3, lightY - 5, -carLength / 2 * 0.9 - spotLightDistance);
+        car.add(spotLightR);
+        car.add(spotLightR.target);
+        car.userData.spotLights = [spotLightL, spotLightR];
+
+        car.castShadow = true;
+        return car;
+    }
+
+    class TrailRenderer {
+        constructor(scene, color) { this.scene = scene; this.color = color; this.trailParts = []; this.maxParts = 60; } // Aumentar maxParts
+        update(position, isDrifting) { // Adicionar isDrifting
+            if (!isDrifting && this.trailParts.length === 0) return; // Só renderiza se estiver driftando ou limpando o rastro
+
+            let part = this.createPart(isDrifting);
+            part.position.copy(position);
+            part.position.y = -4.8; // Ajustar altura para ficar bem na pista
+            this.scene.add(part);
+            this.trailParts.push(part);
+
+            if (this.trailParts.length > this.maxParts || (!isDrifting && this.trailParts.length > 0)) {
+                 const removedPart = this.trailParts.shift();
+                 if(removedPart) this.scene.remove(removedPart);
+            }
+
+            this.trailParts.forEach((p, i) => {
+                const life = i / this.maxParts;
+                p.scale.set(life, life, life);
+                p.material.opacity = life * (isDrifting ? 0.7 : 0.3); // Mais opaco no drift, some mais rápido se não
+            });
+        }
+        createPart(isDrifting) { // Passar isDrifting para variar a intensidade/cor
+             const geometry = new THREE.PlaneGeometry(isDrifting ? 7 : 4, isDrifting ? 7 : 4); // Maior no drift
+             const material = new THREE.MeshBasicMaterial({
+                 color: isDrifting ? new THREE.Color(0xaaaaaa) : this.color, // Fumaça branca no drift, cor do carro se for rastro normal
+                 transparent: true,
+                 opacity: isDrifting ? 0.7 : 0.5,
+                 blending: THREE.AdditiveBlending,
+                 depthWrite: false // Para evitar problemas de z-fighting com a pista
+                });
+             const plane = new THREE.Mesh(geometry, material);
+             plane.rotation.x = -Math.PI / 2;
+             return plane;
+        }
+        clear() {
+            this.trailParts.forEach(p => {
+                if(p) {
+                    this.scene.remove(p);
+                    if (p.geometry) p.geometry.dispose();
+                    if (p.material) p.material.dispose();
+                }
+            });
+            this.trailParts = [];
+        }
+    }
+
+    function init3D() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0d011a); // Fundo escuro neon
+        scene.fog = new THREE.FogExp2(0x0d011a, 0.0025); // Fog exponencial para melhor profundidade
+        // scene.fog = new THREE.Fog(0x0d011a, gameArea.depth * 0.3, gameArea.depth * 0.8); // Fog linear anterior
+
+        // Configurar um cubemap básico para environment map (pode ser melhorado depois com um HDRI)
+        // Por agora, vamos usar o background da cena, mas isso não é ideal para reflexos PBR.
+        // Idealmente, carregaríamos um cubemap aqui.
+        // scene.environment = scene.background; // Removido para usar cubemap se disponível, ou null
+        // Para um placeholder melhor, podemos criar um cubemap simples programaticamente ou usar um loader
+        const pmremGenerator = new THREE.PMREMGenerator(renderer); // Gerador para processar o envmap
+        // pmremGenerator.compileEquirectangularShader(); // Pré-compilar se for usar equirectangular
+
+        // Se tivermos uma textura de cubemap (ex: de https://polyhaven.com/)
+        // new THREE.CubeTextureLoader()
+        //     .setPath( 'path/to/cubemap/' )
+        //     .load( [ 'px.png', 'nx.png', 'py.png', 'ny.png', 'pz.png', 'nz.png' ], function ( texture ) {
+        //         scene.environment = pmremGenerator.fromCubemap(texture).texture;
+        //         pmremGenerator.dispose();
+        //     } );
+        // Como não posso carregar arquivos locais, vou deixar scene.environment nulo por enquanto,
+        // o que significa que os reflexos virão da cor do ambiente e luzes, não de um mapa específico.
+        // Para PBR funcionar bem, um envmap é crucial. Vamos simular um por agora.
+        // Se scene.environment for null, MeshStandardMaterial usa a cor do background e luzes para reflexos.
+        // Para um efeito melhor, um mapa de ambiente real seria carregado aqui.
+        // Para este exercício, vamos assumir que o brilho do ambiente e das luzes será suficiente.
+        scene.environment = null; // Será setado se um cubemap for carregado
+
+
+        camera = new THREE.PerspectiveCamera(60, canvasContainer.clientWidth / canvasContainer.clientHeight, 0.1, 2000); // FOV ligeiramente menor, maior far clip
+        camera.position.set(0, 35, 70);
+        camera.lookAt(0, 0, 0);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); // alpha:true se quiser background transparente no canvas
+        renderer.setSize(canvasContainer.clientWidth, canvasContainer.clientHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Sombras mais suaves
+
+        // Gerenciamento de Cor e Tom
+        renderer.outputColorSpace = THREE.SRGBColorSpace; // Correto para display
+        renderer.toneMapping = THREE.ACESFilmicToneMapping; // Mapeamento de tom cinematográfico
+        renderer.toneMappingExposure = 1.0; // Ajustar exposição global se necessário
+
+        canvasContainer.appendChild(renderer.domElement);
+
+        scene.add(new THREE.AmbientLight(0xffffff, 0.3)); // Luz ambiente mais sutil
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2); // Luz direcional principal mais forte
+        directionalLight.position.set(-50, 70, 40); // Posição ajustada para melhor ângulo
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 2048; // Maior resolução para sombras
+        directionalLight.shadow.mapSize.height = 2048;
+        directionalLight.shadow.camera.near = 0.5;
+        directionalLight.shadow.camera.far = 200;
+        directionalLight.shadow.camera.left = -gameArea.width;
+        directionalLight.shadow.camera.right = gameArea.width;
+        directionalLight.shadow.camera.top = gameArea.depth /2;
+        directionalLight.shadow.camera.bottom = -gameArea.depth /2;
+        directionalLight.shadow.bias = -0.0005; // Ajustar bias para evitar shadow acne
+        scene.add(directionalLight);
+        // const helper = new THREE.DirectionalLightHelper(directionalLight, 5);
+        // scene.add(helper);
+        // const shadowCamHelper = new THREE.CameraHelper( directionalLight.shadow.camera );
+        // scene.add( shadowCamHelper );
+
+
+        createEnhancedEnvironment(); // Cria pista, chuva, etc.
+
+        const renderPass = new RenderPass(scene, camera);
+        bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.8, 0.4, 0.75); // Ajustar parâmetros do Bloom
+        // bloomPass.threshold = 0.1;
+        bloomPass.strength = 0.7; // Reduzir um pouco a força global se estiver muito estourado
+        bloomPass.radius = 0.35;   // Raio do blur do bloom
+        // bloomPass.threshold = 0.05; // Objetos menos brilhantes também podem causar um leve bloom
+
+        filmPass = new FilmPass(0.15, 0.010, 480, false); // Granulado mais sutil
+
+        const RadialBlurShader = {
+            uniforms: { 'tDiffuse': { value: null }, 'u_strength': { value: 0.0 }, 'u_time': { value: 0.0 } }, // Adicionar u_time
+            vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+            // Shader de radial blur melhorado com um pouco de distorção
+            fragmentShader: `
+                uniform sampler2D tDiffuse;
+                uniform float u_strength;
+                uniform float u_time;
+                varying vec2 vUv;
+                void main() {
+                    vec2 center = vec2(0.5);
+                    vec4 color = vec4(0.0);
+                    float totalStrength = u_strength * (0.7 + 0.3 * sin(u_time * 0.1)); // Pulsar a força
+                    vec2 toCenter = center - vUv;
+                    float dist = length(toCenter);
+
+                    float samples = 10.0;
+                    for (float i = 0.0; i < samples; i++) {
+                        float percent = i / samples;
+                        float easedPercent = pow(percent, 0.75); // Ease out para amostras mais densas perto do centro
+                        color += texture2D(tDiffuse, vUv + toCenter * easedPercent * totalStrength * 0.01 * (1.0 - dist) );
+                    }
+                    gl_FragColor = color / samples;
+                }`
+        };
+        radialBlurPass = new ShaderPass(RadialBlurShader);
+        radialBlurPass.enabled = false;
+
+        composer = new EffectComposer(renderer);
+        composer.addPass(renderPass);
+        composer.addPass(bloomPass);
+        composer.addPass(radialBlurPass);
+        composer.addPass(filmPass);
+    }
+
+    function createEnhancedEnvironment() {
+        // Textura da Pista - Tentar algo mais "cyber" se possível, ou placeholder melhorado
+        // const roadTexture = new THREE.TextureLoader().load('https://placehold.co/256x256/1a1a2d/3a3a4f.png?text=Pista'); // Placeholder
+        // Usar um gradiente ou cor sólida por enquanto se a textura não for boa.
+        road = new THREE.Mesh(
+            new THREE.PlaneGeometry(gameArea.width, gameArea.depth * 2),
+            new THREE.MeshStandardMaterial({
+                color: 0x181820, // Cor de asfalto escuro
+                roughness: 0.7,
+                metalness: 0.1,
+                envMap: scene ? scene.environment : null,
+                envMapIntensity: 0.5
+                // map: roadTexture, // Descomentar se tiver uma boa textura
+            })
+        );
+        // roadTexture.wrapS = THREE.RepeatWrapping; roadTexture.wrapT = THREE.RepeatWrapping; roadTexture.repeat.set(gameArea.width/10, gameArea.depth*2/10);
+        const roadTexture = new THREE.TextureLoader().load('https://placehold.co/512x512/101015/202025.png?text=Asphalt&font=orbitron');
+        roadTexture.wrapS = THREE.RepeatWrapping;
+        roadTexture.wrapT = THREE.RepeatWrapping;
+        roadTexture.repeat.set(gameArea.width / 20, gameArea.depth * 2 / 20); // Ajustar repetição
+        road.material.map = roadTexture;
+        road.material.needsUpdate = true;
+
+        road.rotation.x = -Math.PI / 2; road.position.y = -5; road.receiveShadow = true;
+        scene.add(road);
+
+        // Linhas da Pista (Neon) - Agora serão objetos que se movem
+        // Vamos criar um array para armazená-las para que possam ser movidas em atualizarJogo
+        if (!road.userData.lines) road.userData.lines = [];
+
+        const numCenterLines = 30; // Mais linhas para preencher o espaço com movimento
+        const centerLineLength = gameArea.depth * 0.1;
+        const centerLineGap = gameArea.depth * 0.15;
+
+        for(let i = 0; i < numCenterLines; i++) {
+            const lineGeo = new THREE.PlaneGeometry(0.5, centerLineLength); // Linhas centrais mais finas
+            const lineMeshMat = new THREE.MeshStandardMaterial({
+                color: 0x00ffff,
+                emissive: 0x00ffff,
+                emissiveIntensity: 3.0,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.7
+            });
+            const lineMesh = new THREE.Mesh(lineGeo, lineMeshMat);
+            lineMesh.rotation.x = Math.PI / 2;
+            // Posicionar inicialmente fora da vista, ou distribuídas
+            lineMesh.position.set(0, -4.98, -gameArea.depth - (i * (centerLineLength + centerLineGap)));
+            road.userData.lines.push(lineMesh); // Adicionar ao array
+            scene.add(lineMesh);
+        }
+        // Adicionar laterais da pista (guard rails com emissão)
+        const guardRailHeight = 2;
+        const guardRailGeo = new THREE.BoxGeometry(0.5, guardRailHeight, gameArea.depth * 2);
+        const guardRailMat = new THREE.MeshStandardMaterial({
+            color: 0xff00ff,
+            emissive: 0xff00ff,
+            emissiveIntensity: 1.5,
+            metalness: 0.6,
+            roughness: 0.3
+        });
+        const guardRailL = new THREE.Mesh(guardRailGeo, guardRailMat);
+        guardRailL.position.set(-gameArea.width/2 + 2, -5 + guardRailHeight/2, 0);
+        scene.add(guardRailL);
+        const guardRailR = new THREE.Mesh(guardRailGeo, guardRailMat);
+        guardRailR.position.set(gameArea.width/2 - 2, -5 + guardRailHeight/2, 0);
+        scene.add(guardRailR);
+
+
+        // Chuva Melhorada
+        const rainCount = 10000; // Menos gotas, mas mais estilizadas
+        const rainGeo = new THREE.BufferGeometry();
+        const rainVertices = [];
+        const rainVelocities = [];
+        for(let i=0; i<rainCount; i++) {
+            rainVertices.push(
+                Math.random() * gameArea.width * 3 - gameArea.width * 1.5, // Espalhar mais horizontalmente
+                Math.random() * 150, // Começar mais alto
+                Math.random() * gameArea.depth * 2 - gameArea.depth // Espalhar na profundidade da pista visível
+            );
+            rainVelocities.push((Math.random() - 0.5) * 0.1, - (Math.random() * 0.5 + 0.5) * 3 , (Math.random() - 0.5) * 0.1); // Velocidade com alguma variação lateral
+        }
+        rainGeo.setAttribute('position', new THREE.Float32BufferAttribute(rainVertices, 3));
+        rainGeo.setAttribute('velocity', new THREE.Float32BufferAttribute(rainVelocities, 3));
+
+        // Usar um sprite para as gotas de chuva
+        // const rainTexture = new THREE.TextureLoader().load('path/to/raindrop_sprite.png'); // Se tiver sprite
+        const rainMaterial = new THREE.PointsMaterial({
+            color: 0x88aaff,
+            size: 0.2, // Tamanho menor, mais denso
+            transparent: true,
+            opacity: 0.6,
+            // map: rainTexture, // Se usar sprite
+            // blending: THREE.AdditiveBlending, // Para brilho
+            depthWrite: false // Para evitar problemas de ordenação com outros transparentes
+        });
+        rain = new THREE.Points(rainGeo, rainMaterial);
+        rain.visible = false;
+        scene.add(rain);
+
+        // Campo de Estrelas (Opcional, se o fundo for muito escuro)
+        if (!starField) {
+            const starVertices = [];
+            for (let i = 0; i < 5000; i++) {
+                starVertices.push(
+                    THREE.MathUtils.randFloatSpread(1500), // x
+                    THREE.MathUtils.randFloatSpread(1000) + 200, // y (mais acima)
+                    THREE.MathUtils.randFloatSpread(1500) - 500  // z (mais para trás)
+                );
+            }
+            const starGeometry = new THREE.BufferGeometry();
+            starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+            const starMaterial = new THREE.PointsMaterial({
+                color: 0x6666ff,
+                size: 0.7,
+                transparent: true,
+                opacity: 0.5,
+                blending: THREE.AdditiveBlending
+            });
+            starField = new THREE.Points(starGeometry, starMaterial);
+            scene.add(starField); // Ativar o campo de estrelas
+        }
+    }
+
+    function createObstacleMesh() {
+        return new THREE.Mesh(
+            new THREE.ConeGeometry(8,12,8), // Mais lados para o cone
+            new THREE.MeshStandardMaterial({
+                color: 0xdc2626,
+                roughness: 0.6,
+                metalness: 0.3,
+                emissive: 0x330000, // Leve brilho escuro
+                envMap: scene ? scene.environment : null,
+                envMapIntensity: 0.8
+            })
+        );
+    }
+    function createCollectibleMesh() {
+        return new THREE.Mesh(
+            new THREE.TorusGeometry(4, 1.5, 16, 48), // Mais segmentos
+            new THREE.MeshStandardMaterial({
+                color: 0x16a34a,
+                emissive: 0x33ff77, // Emissivo mais vibrante
+                emissiveIntensity: 1.5,
+                roughness: 0.2,
+                metalness: 0.5,
+                envMap: scene ? scene.environment : null,
+                envMapIntensity: 1.0
+            })
+        );
+    }
+    function createPowerupMesh() {
+        return new THREE.Mesh(
+            new THREE.SphereGeometry(4, 32, 32), // Mais segmentos
+            new THREE.MeshStandardMaterial({
+                color: 0x3b82f6,
+                emissive: 0x60a5fa, // Emissivo mais vibrante
+                emissiveIntensity: 1.2,
+                transparent: true,
+                opacity: 0.85,
+                roughness: 0.1,
+                metalness: 0.4,
+                envMap: scene ? scene.environment : null,
+                envMapIntensity: 1.2
+            })
+        );
+    }
+    function createAICarMesh() {
+        const car = new THREE.Group(); // IA também será um grupo
+        const carWidth = 7.5;
+        const carHeight = 4.5;
+        const carLength = 16;
+
+        const aiColor = [0x555555, 0x777777, 0x444444][Math.floor(Math.random() * 3)];
+        const bodyMat = new THREE.MeshStandardMaterial({
+            color: aiColor,
+            metalness: 0.8,
+            roughness: 0.3,
+            envMap: scene ? scene.environment : null,
+            envMapIntensity: 0.8
+        });
+
+        const glassMat = new THREE.MeshStandardMaterial({ // Vidro similar ao do jogador
+            color: 0x111122,
+            metalness: 0.5,
+            roughness: 0.1,
+            transparent: true,
+            opacity: 0.6,
+            envMap: scene ? scene.environment : null,
+            envMapIntensity: 1.2
+        });
+
+        // Corpo Simplificado da IA
+        const mainBodyGeo = new THREE.BoxGeometry(carWidth, carHeight * 0.6, carLength * 0.95);
+        const mainBody = new THREE.Mesh(mainBodyGeo, bodyMat);
+        mainBody.position.y = carHeight * 0.3;
+        mainBody.castShadow = true;
+        mainBody.receiveShadow = true;
+        car.add(mainBody);
+
+        // Cabine Simplificada da IA
+        const cabinWidth = carWidth * 0.7;
+        const cabinHeight = carHeight * 0.5;
+        const cabinLength = carLength * 0.35;
+        const cabinGeo = new THREE.BoxGeometry(cabinWidth, cabinHeight, cabinLength);
+        const cabin = new THREE.Mesh(cabinGeo, glassMat); // Cabine inteira de "vidro" escuro
+        cabin.position.set(0, carHeight * 0.6 + cabinHeight * 0.5 - (carHeight*0.1), -carLength * 0.05);
+        cabin.castShadow = true;
+        car.add(cabin);
+
+        // Rodas Simplificadas (apenas cilindros escuros, sem distinção pneu/roda)
+        const wheelRadius = carHeight * 0.25;
+        const wheelWidth = carWidth * 0.1;
+        const wheelGeo = new THREE.CylinderGeometry(wheelRadius, wheelRadius, wheelWidth, 12);
+        const wheelMat = new THREE.MeshStandardMaterial({ color: 0x101010, metalness: 0.05, roughness: 0.9 });
+
+        const wheelPositions = [
+            new THREE.Vector3(-carWidth / 2 * 0.85, wheelRadius*0.9, carLength / 2 * 0.6),
+            new THREE.Vector3(carWidth / 2 * 0.85, wheelRadius*0.9, carLength / 2 * 0.6),
+            new THREE.Vector3(-carWidth / 2 * 0.85, wheelRadius*0.9, -carLength / 2 * 0.6),
+            new THREE.Vector3(carWidth / 2 * 0.85, wheelRadius*0.9, -carLength / 2 * 0.6)
+        ];
+
+        wheelPositions.forEach(pos => {
+            const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+            wheel.rotation.z = Math.PI / 2;
+            wheel.position.copy(pos);
+            wheel.castShadow = true;
+            car.add(wheel);
+        });
+
+        car.position.y = -(wheelRadius*0.9); // Ajustar altura
+
+        // Adicionar luzes traseiras emissivas (sempre levemente acesas)
+        const tailLightMat = new THREE.MeshStandardMaterial({color: 0xaa0000, emissive: 0x550000, emissiveIntensity: 0.8, metalness: 0.1, roughness: 0.5});
+        const tailLightGeo = new THREE.BoxGeometry(carWidth * 0.3, carHeight * 0.1, 0.2);
+
+        const tailLightL = new THREE.Mesh(tailLightGeo, tailLightMat);
+        tailLightL.position.set(-carWidth * 0.25, carHeight * 0.3, carLength / 2 * 0.95);
+        car.add(tailLightL);
+
+        const tailLightR = new THREE.Mesh(tailLightGeo, tailLightMat);
+        tailLightR.position.set(carWidth * 0.25, carHeight * 0.3, carLength / 2 * 0.95);
+        car.add(tailLightR);
+
+        // Adicionar luzes frontais emissivas simples para IA
+        const headLightAIYPos = carHeight * 0.35; // Um pouco mais alto que as traseiras
+        const headLightAISize = carWidth * 0.1;
+        const headLightAIMat = new THREE.MeshStandardMaterial({
+            color: 0xffffdd,
+            emissive: 0xffffaa,
+            emissiveIntensity: 1.2, // Sempre um pouco acesas
+            metalness: 0.1,
+            roughness: 0.3
+        });
+        const headLightAIGeo = new THREE.BoxGeometry(headLightAISize, headLightAISize * 0.7, 0.2);
+
+        const headLightAIL = new THREE.Mesh(headLightAIGeo, headLightAIMat);
+        headLightAIL.position.set(-carWidth * 0.3, headLightAIYPos, -carLength / 2 * 0.95);
+        car.add(headLightAIL);
+
+        const headLightAIR = new THREE.Mesh(headLightAIGeo, headLightAIMat);
+        headLightAIR.position.set(carWidth * 0.3, headLightAIYPos, -carLength / 2 * 0.95);
+        car.add(headLightAIR);
+
+
+        car.speed = Math.random() * 0.4 + 0.3;
+        car.castShadow = true; // O grupo projeta sombra
+        // car.receiveShadow = true; // Opcional para o grupo, os filhos já recebem
+        return car;
+    }
+    function createTurboMesh() {
+        return new THREE.Mesh(
+            new THREE.CylinderGeometry(2, 4, 8, 32), // Mais segmentos
+            new THREE.MeshStandardMaterial({
+                color: 0xff7b00,
+                emissive: 0xffaa33, // Emissivo mais vibrante
+                emissiveIntensity: 2.0,
+                roughness: 0.2,
+                metalness: 0.6,
+                envMap: scene ? scene.environment : null,
+                envMapIntensity: 1.1
+            })
+        );
+    }
+    function createEmpMesh() {
+        const geom = new THREE.IcosahedronGeometry(4, 2); // Mais subdivisões para esfera mais lisa
+        const mat = new THREE.MeshStandardMaterial({
+            color: 0xddddff,
+            emissive: 0x00ffff,
+            emissiveIntensity: 2.5,
+            roughness: 0.1,
+            metalness: 0.7,
+            envMap: scene ? scene.environment : null,
+            envMapIntensity: 1.3,
+            transparent: true,
+            opacity: 0.9
+        });
+        return new THREE.Mesh(geom, mat);
+    }
+
+    // CORREÇÃO: Funções que estavam em falta adicionadas aqui
+    async function showLeaderboard() {
+        if (!db) return;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const q = query(collection(db, `artifacts/${appId}/public/data/leaderboard`), orderBy("score", "desc"), limit(10));
+        const list = document.getElementById('leaderboard-list');
+        list.innerHTML = '<li>A carregar...</li>';
+
+        // Garante que outros modais estejam escondidos e não interativos
+        [quizModal, saveScoreModal].forEach(modal => {
+            modal.classList.remove('flex', 'opacity-100', 'scale-100');
+            modal.classList.add('opacity-0', 'scale-95');
+            modal.style.pointerEvents = 'none';
+        });
+
+        // Mostra o container principal do modal
+        modalContainer.classList.remove('opacity-0', 'pointer-events-none');
+        modalContainer.classList.add('opacity-100');
+
+        // Mostra o modal específico do leaderboard
+        leaderboardModal.classList.remove('opacity-0', 'scale-95', 'pointer-events-none');
+        leaderboardModal.classList.add('flex', 'opacity-100', 'scale-100');
+        leaderboardModal.style.pointerEvents = 'auto';
+
+        try {
+            const querySnapshot = await getDocs(q);
+            list.innerHTML = '';
+            if (querySnapshot.empty) {
+                list.innerHTML = '<li>Nenhum recorde ainda. Seja o primeiro!</li>';
+            } else {
+                querySnapshot.forEach((doc, index) => {
+                    const data = doc.data();
+                    list.innerHTML += `<li>${index + 1}. ${data.name} - ${data.score} pontos</li>`;
+                });
+            }
+        } catch (e) {
+            list.innerHTML = '<li>Não foi possível carregar os recordes.</li>';
+            console.error(e);
+        }
+    }
+
+    function showSaveScoreModal(score, title = "Fim de Jogo!") {
+        gameState = 'fimDeJogo';
+        soundManager.toggleMusic(false);
+        soundManager.toggleRainSound(false);
+        jogadores.forEach(p => soundManager.stopEngineSound(p.engineSound));
+        finalScoreEl.textContent = score;
+        gameOverTitleEl.textContent = title;
+
+        // Garante que outros modais estejam escondidos e não interativos
+        [leaderboardModal, quizModal].forEach(modal => {
+            modal.classList.remove('flex', 'opacity-100', 'scale-100');
+            modal.classList.add('opacity-0', 'scale-95');
+            modal.style.pointerEvents = 'none';
+        });
+
+        // Mostra o container principal do modal
+        modalContainer.classList.remove('opacity-0', 'pointer-events-none');
+        modalContainer.classList.add('opacity-100');
+
+        // Mostra o modal específico
+        saveScoreModal.classList.remove('opacity-0', 'scale-95', 'pointer-events-none');
+        saveScoreModal.classList.add('flex', 'opacity-100', 'scale-100');
+        saveScoreModal.style.pointerEvents = 'auto';
+    }
+
+    async function saveScore(playerName, score) {
+        if (!db || !auth.currentUser) return;
+        try {
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            await addDoc(collection(db, `artifacts/${appId}/public/data/leaderboard`), { name: playerName, score, timestamp: serverTimestamp() });
+        } catch (e) { console.error("Erro ao salvar pontuação: ", e); }
+    }
+
+    function setupEventListeners() {
+        startBtn.addEventListener('click', iniciarJogo);
+        leaderboardBtn.addEventListener('click', showLeaderboard);
+        closeLeaderboardBtn.addEventListener('click', () => {
+            leaderboardModal.classList.remove('flex', 'opacity-100', 'scale-100');
+            leaderboardModal.classList.add('opacity-0', 'scale-95');
+            leaderboardModal.style.pointerEvents = 'none';
+
+            // Verifica se algum outro modal está visível antes de esconder o container
+            const quizVisible = quizModal.classList.contains('opacity-100');
+            const saveScoreVisible = saveScoreModal.classList.contains('opacity-100');
+
+            if (!quizVisible && !saveScoreVisible) {
+                 modalContainer.classList.remove('opacity-100');
+                 modalContainer.classList.add('opacity-0', 'pointer-events-none');
+            }
+        });
+        submitScoreBtn.addEventListener('click', async () => {
+            const playerName = playerNameInput.value.trim();
+            if (playerName) {
+                await saveScore(playerName, jogadores.reduce((acc, p) => acc + p.pontos, 0));
+                saveScoreModal.classList.remove('flex', 'opacity-100', 'scale-100');
+                saveScoreModal.classList.add('opacity-0', 'scale-95');
+                saveScoreModal.style.pointerEvents = 'none';
+                showLeaderboard();
+            }
+        });
+        playAgainFromSaveBtn.addEventListener('click', () => {
+            saveScoreModal.classList.remove('flex', 'opacity-100', 'scale-100');
+            saveScoreModal.classList.add('opacity-0', 'scale-95');
+            saveScoreModal.style.pointerEvents = 'none';
+
+            modalContainer.classList.remove('opacity-100');
+            modalContainer.classList.add('opacity-0', 'pointer-events-none');
+            voltarAoLobby();
+        });
+        window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; });
+        window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+        window.addEventListener('resize', () => {
+            if (!renderer) return;
+            camera.aspect = canvasContainer.clientWidth / canvasContainer.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(canvasContainer.clientWidth, canvasContainer.clientHeight);
+            composer.setSize(canvasContainer.clientWidth, canvasContainer.clientHeight);
+        });
+        cameraToggleBtn.addEventListener('click', toggleCamera);
+    }
+
+    function toggleCamera() { cameraMode = (cameraMode + 1) % 2; }
+
+    function setupLobby() {
+        playerSelectionContainer.innerHTML = '';
+        JOGADORES_CONFIG.forEach(pConfig => {
+            const playerDiv = document.createElement('div');
+            playerDiv.className = 'flex items-center justify-between bg-gray-900 bg-opacity-50 border-2 border-pink-500 p-3 rounded-lg';
+            const corHex = '#' + new THREE.Color(pConfig.cor).getHexString();
+            playerDiv.innerHTML = `
+                <div class="flex items-center">
+                    <div class="w-5 h-5 rounded-full mr-4" style="background-color: ${corHex}; box-shadow: 0 0 10px ${corHex};"></div>
+                    <span class="font-bold text-lg">PILOTO ${pConfig.id}</span>
+                </div>
+                <div class="text-sm text-gray-400 font-mono">(${pConfig.keys.map(k => k.replace('arrow', '')).join('/')})</div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" value="" data-player-id="${pConfig.id}" class="sr-only peer player-toggle">
+                  <div class="w-11 h-6 bg-gray-600 rounded-full peer peer-focus:ring-4 peer-focus:ring-pink-800 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600"></div>
+                </label>
+            `;
+            playerSelectionContainer.appendChild(playerDiv);
+        });
+
+        playerSelectionContainer.querySelectorAll('.player-toggle').forEach(toggle => {
+            toggle.addEventListener('change', () => {
+                const checkedCount = document.querySelectorAll('.player-toggle:checked').length;
+                startBtn.disabled = checkedCount === 0;
+                startBtn.classList.toggle('pulse', checkedCount > 0);
+            });
+        });
+    }
+
+    function voltarAoLobby() {
+        soundManager.toggleMusic(false);
+        soundManager.toggleRainSound(false); // Certificar que a chuva pare
+        if(animationFrameId) cancelAnimationFrame(animationFrameId);
+        animationFrameId = null;
+        gameState = 'lobby';
+        gameScreen.classList.add('hidden');
+        lobbyScreen.classList.remove('hidden');
+
+        // Limpeza completa da cena e dos recursos
+        jogadores.forEach(p => {
+            if(p.mesh) {
+                scene.remove(p.mesh);
+                // Dispose de geometrias e materiais dentro do grupo do carro
+                p.mesh.traverse(child => {
+                    if (child.isMesh) {
+                        if (child.geometry) child.geometry.dispose();
+                        if (child.material) {
+                            if (Array.isArray(child.material)) {
+                                child.material.forEach(mat => mat.dispose());
+                            } else {
+                                child.material.dispose();
+                            }
+                        }
+                    }
+                    if (child.isLight) { // Remover luzes associadas ao carro
+                         if(child.target) scene.remove(child.target); // Remover target de SpotLights
+                    }
+                });
+            }
+            if(p.trail) p.trail.clear(); // TrailRenderer.clear() já faz dispose
+            soundManager.stopEngineSound(p.engineSound);
+        });
+
+        const itemsParaRemover = [...obstaculos, ...coletaveis, ...powerups, ...aiCars, ...turbos, ...emps];
+        itemsParaRemover.forEach(item => {
+            scene.remove(item);
+            if (item.geometry) item.geometry.dispose();
+            if (item.material) { // Material pode ser um array
+                 if (Array.isArray(item.material)) {
+                    item.material.forEach(mat => mat.dispose());
+                } else {
+                    item.material.dispose();
+                }
+            }
+             // Se o item for um Group (como os carros IA), percorrer e limpar
+            if (item.isGroup) {
+                item.traverse(child => {
+                    if (child.isMesh) {
+                        if (child.geometry) child.geometry.dispose();
+                        if (child.material) {
+                             if (Array.isArray(child.material)) {
+                                child.material.forEach(mat => mat.dispose());
+                            } else {
+                                child.material.dispose();
+                            }
+                        }
+                    }
+                });
+            }
+        });
+
+        if (road && road.userData.lines) {
+            road.userData.lines.forEach(line => {
+                scene.remove(line);
+                if (line.geometry) line.geometry.dispose();
+                if (line.material) line.material.dispose();
+            });
+            road.userData.lines = [];
+        }
+
+        // Limpar faíscas ativas
+        if (fxManager && fxManager.sparks) {
+            fxManager.sparks.forEach(sparkSystem => {
+                scene.remove(sparkSystem.points);
+                if (sparkSystem.geometry) sparkSystem.geometry.dispose();
+                if (sparkSystem.points && sparkSystem.points.material) sparkSystem.points.material.dispose();
+            });
+            fxManager.sparks = [];
+        }
+        if (fxManager && fxManager.empWave) {
+            scene.remove(fxManager.empWave);
+             if (fxManager.empWave.geometry) fxManager.empWave.geometry.dispose();
+             if (fxManager.empWave.material) fxManager.empWave.material.dispose();
+            fxManager.empWave = null;
+        }
+
+
+        jogadores = []; obstaculos = []; coletaveis = []; powerups = []; aiCars = []; turbos = []; emps = [];
+        faseAtual = 0;
+        phaseTimer = 0; // Resetar timer da fase
+        if(keys) { // Resetar teclas pressionadas
+            for(let key in keys) keys[key] = false;
+        }
+
+        // Limpar texturas se necessário (ex: a da pista, se não for mais usada)
+        // Se a textura da pista é carregada uma vez e reutilizada, não precisa dispose aqui,
+        // mas se for recarregada ou única para uma fase, sim.
+        // No nosso caso, a textura da pista é carregada em createEnhancedEnvironment,
+        // que é chamado em init3D. Se init3D for chamado de novo, a textura antiga não será disposed.
+        // Por simplicidade, vamos assumir que init3D não é chamado repetidamente sem limpar o renderer.
+
+        setupLobby(); // Remonta o lobby
+    }
+
+    function iniciarJogo() {
+        soundManager.startAudioContext();
+        jogadores = Array.from(document.querySelectorAll('.player-toggle:checked')).map(toggle => {
+            const pConfig = JOGADORES_CONFIG.find(p => p.id == toggle.dataset.playerId);
+            return { ...pConfig, pontos: 0, ativo: true, hasShield: false, velocidade: 1.2, targetTilt: 0, keys: pConfig.keys.map(k => k.toLowerCase()), mesh: createPlayerCar(pConfig.cor), trail: new TrailRenderer(scene, new THREE.Color(pConfig.cor)), turboTimer: 0, isDrifting: false, isEmpd: false, empTimer: 0, engineSound: soundManager.createEngineSound() };
+        });
+        if (jogadores.length === 0) return;
+        faseAtual = 0;
+        lobbyScreen.classList.add('hidden');
+        gameScreen.classList.remove('hidden');
+        iniciarFase();
+    }
+
+    function iniciarFase() {
+        gameState = 'jogando';
+        soundManager.toggleMusic(true);
+        phaseTimer = 0;
+        const faseConfig = FASES[faseAtual];
+        const isRaining = Math.random() < faseConfig.cChuva;
+        rain.visible = isRaining;
+        soundManager.toggleRainSound(isRaining);
+        if(road && road.material) {
+            road.material.roughness = isRaining ? 0.2 : 0.8;
+            road.material.metalness = isRaining ? 0.5 : 0.2;
+            road.material.needsUpdate = true;
+        }
+
+        [...obstaculos, ...coletaveis, ...powerups, ...aiCars, ...turbos, ...emps].forEach(obj => scene.remove(obj));
+        obstaculos = [], coletaveis = [], powerups = [], aiCars = [], turbos = [], emps = [];
+        jogadores.forEach((p, i) => {
+            p.ativo = true; p.hasShield = false; p.turboTimer = 0; p.isDrifting = false; p.isEmpd = false;
+            const initialX = (gameArea.width / (jogadores.length + 1)) * (i + 1) - (gameArea.width / 2);
+            p.mesh.position.set(initialX, 0, 40); p.mesh.visible = true;
+            if(!scene.getObjectById(p.mesh.id)) scene.add(p.mesh);
+            p.trail.clear();
+        });
+        if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        animate();
+    }
+
+    function animate() {
+        animationFrameId = requestAnimationFrame(animate);
+        const delta = clock.getDelta();
+
+        if (gameState === 'jogando') {
+            phaseTimer += delta;
+            atualizarJogo(delta);
+        }
+
+        fxManager.update(delta);
+
+        if(rain.visible) {
+            const positions = rain.geometry.attributes.position.array;
+            const velocities = rain.geometry.attributes.velocity.array;
+            let playerSpeedFactor = 1.0;
+            if (jogadores.length > 0 && jogadores[0].ativo && FASES[faseAtual] && FASES[faseAtual].vI > 0) { // Adicionada verificação de vI > 0
+                playerSpeedFactor = jogadores[0].velocidade / FASES[faseAtual].vI;
+            }
+            const effectiveRainSpeedMultiplier = 1.0 + playerSpeedFactor * 0.3;
+
+            for(let i=0; i < positions.length; i+=3) {
+                positions[i] += velocities[i+0] * delta * effectiveRainSpeedMultiplier * 10; // Movimento X mais sutil
+                positions[i+1] += velocities[i+1] * delta * effectiveRainSpeedMultiplier * 50; // Queda Y
+                // positions[i+2] += velocities[i+2] * delta; // Movimento Z, se houver velocidade Z
+
+                if(positions[i+1] < -gameArea.depth * 0.1) { // Quando a gota some abaixo da visão inferior
+                    positions[i+1] = gameArea.depth * 0.5 + Math.random() * 50; // Reposiciona no topo da área visível + alguma variação
+                    positions[i] = (Math.random() - 0.5) * gameArea.width * 2 + camera.position.x; // Reposiciona X em uma faixa mais larga em volta da câmera
+                    positions[i+2] = (Math.random() - 0.5) * gameArea.depth * 2 + camera.position.z - gameArea.depth * 0.5; // Reposiciona Z
+                }
+            }
+            rain.geometry.attributes.position.needsUpdate = true;
+        }
+        updateCameraPosition();
+        composer.render();
+    }
+
+    function updateCameraPosition() {
+        if(jogadores.length === 0 || !jogadores[0] || !jogadores[0].mesh) return;
+        const player = jogadores[0];
+        let targetPosition = new THREE.Vector3();
+        let lookAtTarget = player.mesh.position.clone().add(new THREE.Vector3(0, 3, -20));
+
+        if(cameraMode === 0) {
+            targetPosition.set(player.mesh.position.x, player.mesh.position.y + 25, player.mesh.position.z + 40);
+        } else {
+            targetPosition.set(player.mesh.position.x, player.mesh.position.y + 5, player.mesh.position.z + 1);
+        }
+
+        camera.position.lerp(targetPosition, 0.1);
+        camera.lookAt(lookAtTarget);
+
+        if (fxManager.shake > 0) {
+             camera.position.x += (Math.random() - 0.5) * fxManager.shake * 0.5; // Reduzir um pouco o shake
+             camera.position.y += (Math.random() - 0.5) * fxManager.shake * 0.5;
+             fxManager.shake *= 0.85; // Decair mais rápido
+        }
+
+        // Parallax para o starField
+        if (starField && jogadores.length > 0 && jogadores[0].mesh) {
+            const playerX = jogadores[0].mesh.position.x;
+            starField.position.x = -playerX * 0.005; // Movimento sutil oposto ao jogador
+            starField.position.y = -camera.position.y * 0.002;
+        }
+    }
+
+    const fxManager = {
+        shake: 0,
+        empWave: null,
+        sparks: [], // Array para gerenciar faíscas
+        maxSparks: 100, // Número máximo de partículas de faíscas na cena
+        triggerShake(intensity) { this.shake = intensity; },
+        triggerEMP(position) {
+            if(this.empWave) scene.remove(this.empWave);
+            soundManager.playEMP();
+            const geometry = new THREE.TorusGeometry(10, 1, 16, 100);
+            const material = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.8 });
+            this.empWave = new THREE.Mesh(geometry, material);
+            this.empWave.position.copy(position);
+            this.empWave.rotation.x = Math.PI / 2;
+            this.empWave.scale.set(0.1, 0.1, 0.1);
+            scene.add(this.empWave);
+        },
+        triggerSparks(position) {
+            const sparkCount = 20 + Math.floor(Math.random() * 15); // Entre 20-35 faíscas
+            const sparkGeo = new THREE.BufferGeometry();
+            const sparkVertices = [];
+            const sparkVelocities = [];
+            const sparkColors = [];
+            const sparkLifes = [];
+
+            const baseColor = Math.random() < 0.6 ? new THREE.Color(0xffaa33) : new THREE.Color(0xffdd88); // Laranja ou amarelo claro
+
+            for (let i = 0; i < sparkCount; i++) {
+                sparkVertices.push(0, 0, 0); // Posição inicial relativa
+                constphi = Math.random() * Math.PI * 2;
+                const theta = Math.random() * Math.PI;
+                const speed = Math.random() * 30 + 20; // Velocidade da faísca
+                sparkVelocities.push(
+                    speed * Math.sin(theta) * Math.cos(phi),
+                    speed * Math.sin(theta) * Math.sin(phi),
+                    speed * Math.cos(theta)
+                );
+                const c = baseColor.clone().lerp(new THREE.Color(0xff0000), Math.random() * 0.3); // Interpolar com vermelho
+                sparkColors.push(c.r, c.g, c.b);
+                sparkLifes.push(Math.random() * 0.3 + 0.2); // Tempo de vida entre 0.2-0.5s
+            }
+            sparkGeo.setAttribute('position', new THREE.Float32BufferAttribute(sparkVertices, 3));
+            sparkGeo.setAttribute('velocity', new THREE.Float32BufferAttribute(sparkVelocities, 3));
+            sparkGeo.setAttribute('color', new THREE.Float32BufferAttribute(sparkColors, 3));
+            sparkGeo.setAttribute('life', new THREE.Float32BufferAttribute(sparkLifes, 1));
+            sparkGeo.setAttribute('initialTime', new THREE.Float32BufferAttribute(Array(sparkCount).fill(clock.elapsedTime),1));
+
+
+            const sparkMat = new THREE.PointsMaterial({
+                size: 0.4,
+                // sizeAttenuation: true, // Partículas menores à distância
+                transparent: true,
+                opacity: 0.9,
+                vertexColors: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+
+            const sparks = new THREE.Points(sparkGeo, sparkMat);
+            sparks.position.copy(position);
+            scene.add(sparks);
+            this.sparks.push({ points: sparks, startTime: clock.elapsedTime, geometry: sparkGeo });
+
+            // Limitar o número de sistemas de faíscas
+            if(this.sparks.length > 15) {
+                const oldSparks = this.sparks.shift();
+                scene.remove(oldSparks.points);
+                oldSparks.geometry.dispose();
+            }
+        },
+        update(delta) {
+            if(this.empWave) {
+                this.empWave.scale.x += delta * 25; // Mais rápido
+                this.empWave.scale.y += delta * 25;
+                this.empWave.material.opacity -= delta * 1.2; // Sumir mais rápido
+                if(this.empWave.material.opacity <= 0) {
+                    scene.remove(this.empWave);
+                    this.empWave = null;
+                }
+            }
+
+            // Atualizar faíscas
+            for (let i = this.sparks.length - 1; i >= 0; i--) {
+                const sparkSystem = this.sparks[i];
+                const geometry = sparkSystem.geometry;
+                const positions = geometry.attributes.position.array;
+                const velocities = geometry.attributes.velocity.array;
+                const opacities = geometry.attributes.opacity ? geometry.attributes.opacity.array : null; // Se tivermos um atributo de opacidade por partícula
+                const lifes = geometry.attributes.life.array;
+                const initialTimes = geometry.attributes.initialTime.array;
+
+                let aliveParticles = 0;
+                for (let j = 0; j < positions.length / 3; j++) {
+                    const elapsedTimeInSystem = clock.elapsedTime - initialTimes[j];
+
+                    if(elapsedTimeInSystem < lifes[j]) {
+                        positions[j*3] += velocities[j*3] * delta;
+                        positions[j*3+1] += velocities[j*3+1] * delta;
+                        positions[j*3+2] += velocities[j*3+2] * delta;
+                        velocities[j*3+1] -= 20 * delta; // Gravidade simples nas faíscas
+
+                        if(opacities) opacities[j] = 1.0 - (elapsedTimeInSystem / lifes[j]);
+                        aliveParticles++;
+                    } else {
+                         if(opacities) opacities[j] = 0;
+                         // Para esconder permanentemente, mover para longe ou zerar escala.
+                         // Mas como estamos recriando o sistema, apenas a opacidade já deve funcionar.
+                    }
+                }
+                geometry.attributes.position.needsUpdate = true;
+                if(opacities) geometry.attributes.opacity.needsUpdate = true;
+
+
+                if (aliveParticles === 0 || clock.elapsedTime - sparkSystem.startTime > 1.0) { // Duração máxima do sistema de faíscas
+                    scene.remove(sparkSystem.points);
+                    geometry.dispose(); // Liberar geometria
+                    sparkSystem.points.material.dispose(); // Liberar material
+                    this.sparks.splice(i, 1);
+                }
+            }
+        }
+    };
+
+    function spawnItem(itemArray, creationFunction, chance) {
+        if (Math.random() < chance) {
+            const newItem = creationFunction();
+            const itemX = Math.random() * (gameArea.width - 20) - ((gameArea.width / 2) - 10);
+            newItem.position.set(itemX, newItem.position.y || 0, -gameArea.depth / 2);
+            itemArray.push(newItem);
+            scene.add(newItem);
+        }
+    }
+
+    function updateItems(items, faseConfig, playerBoxes, onCollect) {
+        for (let i = items.length - 1; i >= 0; i--) {
+            const item = items[i];
+            item.position.z += faseConfig.vI * 60 * clock.getDelta() * (item.speed || 1);
+            if (item.position.z > camera.position.z + 20) { scene.remove(item); items.splice(i, 1); continue; }
+            const itemBox = new THREE.Box3().setFromObject(item);
+            for (let j = 0; j < jogadores.length; j++) {
+                if (jogadores[j].ativo && playerBoxes[j]?.intersectsBox(itemBox)) {
+                    onCollect(jogadores[j], item, items, i);
+                    break;
+                }
+            }
+        }
+    }
+
+    function atualizarJogo(delta) {
+        if (gameState !== 'jogando') return;
+        const faseConfig = FASES[faseAtual];
+        const x_boundary = gameArea.width / 2 - 5; // Limite lateral para os carros dos jogadores
+
+        jogadores.forEach(p => {
+            if (p.empTimer > 0) {
+                p.empTimer -= delta;
+                if(p.empTimer <= 0) p.isEmpd = false;
+            }
+
+            // Atualizar luzes do jogador
+            const isBraking = keys[p.keys[2]]; // Tecla de drift/freio
+            if (p.mesh.userData.brakeLights) {
+                p.mesh.userData.brakeLights.forEach(lightMat => {
+                    lightMat.emissiveIntensity = isBraking && p.ativo && !p.isEmpd ? 2.5 : 0;
+                });
+            }
+            if (p.mesh.userData.headLights && p.mesh.userData.spotLights) {
+                const headLightOn = p.ativo && !p.isEmpd;
+                p.mesh.userData.headLights.forEach(lightMat => {
+                    lightMat.emissiveIntensity = headLightOn ? 1.5 : 0;
+                });
+                p.mesh.userData.spotLights.forEach(spot => {
+                    spot.intensity = headLightOn ? 30 : 0; // Usar a intensidade definida no createPlayerCar
+                });
+            }
+
+
+            if (!p.ativo || p.isEmpd) {
+                soundManager.updateEngineSound(p.engineSound, 0);
+                p.trail.update(p.mesh.position, false); // Continuar atualizando o rastro para que desapareça
+                return;
+            }
+
+            if (isBraking) { // Drift / Freio
+                if(!p.isDrifting) { p.isDrifting = true; soundManager.startDrift(); }
+                p.pontos += 0.1;
+                p.velocidade = faseConfig.vI * 0.5; // Velocidade reduzida no drift
+            } else {
+                if(p.isDrifting) { p.isDrifting = false; soundManager.stopDrift(); }
+                p.velocidade = p.turboTimer > 0 ? faseConfig.vI * 2.2 : faseConfig.vI * 1.1; // Velocidade base da fase ou turbo
+            }
+            p.turboTimer = Math.max(0, p.turboTimer - delta);
+
+            let move = 0;
+            const effectiveMoveSpeed = 45; // Velocidade de movimento lateral (unidades por segundo)
+
+            if (keys[p.keys[0]] && p.mesh.position.x > -x_boundary) move = -1;
+            if (keys[p.keys[1]] && p.mesh.position.x < x_boundary) move = 1;
+
+            p.mesh.position.x += move * effectiveMoveSpeed * delta; // Movimento baseado em delta
+            p.mesh.position.x = Math.max(-x_boundary, Math.min(x_boundary, p.mesh.position.x)); // Clamp na posição X
+
+            p.targetTilt = p.isDrifting ? move * -0.45 : move * -0.20; // Inclinação mais acentuada no drift
+            p.mesh.rotation.z += (p.targetTilt - p.mesh.rotation.z) * 0.15; // Suavizar rotação
+
+            p.trail.update(p.mesh.position, p.isDrifting);
+            soundManager.updateEngineSound(p.engineSound, (p.velocidade / faseConfig.vI) * 0.5 + 0.2); // Normalizar som do motor
+        });
+
+        radialBlurPass.enabled = jogadores.some(p => p.turboTimer > 0 && p.ativo);
+        if (radialBlurPass.enabled) {
+            radialBlurPass.uniforms.u_strength.value = 0.025; // Ajustar força do radial blur
+            radialBlurPass.uniforms.u_time.value += delta;
+        }
+
+        // Mover linhas da pista
+        if (road.userData.lines) {
+            const roadSpeed = faseConfig.vI * 60 * delta;
+            const totalRoadSegmentLength = gameArea.depth * 2; // Assumindo que as linhas cobrem esta área
+
+            road.userData.lines.forEach(line => {
+                line.position.z += roadSpeed;
+                // Se a linha saiu da tela (na frente), reposicionar atrás
+                if (line.position.z > camera.position.z + 50) { // 50 é uma margem
+                    line.position.z -= totalRoadSegmentLength * 1.5; // Reposicionar bem atrás
+                }
+            });
+        }
+
+        spawnItem(obstaculos, createObstacleMesh, faseConfig.cO);
+        spawnItem(coletaveis, createCollectibleMesh, faseConfig.cC);
+        spawnItem(powerups, createPowerupMesh, faseConfig.cP);
+        spawnItem(aiCars, createAICarMesh, faseConfig.cIA);
+        spawnItem(turbos, createTurboMesh, faseConfig.cT);
+        spawnItem(emps, createEmpMesh, faseConfig.cE);
+
+        const playerBoxes = jogadores.map(p => p.ativo ? new THREE.Box3().setFromObject(p.mesh) : null);
+
+        const handleCollision = (player, item, arr, index, isDestructive = true, itemType = 'obstacle') => {
+            if (isDestructive && player.ativo) { // Só acionar efeitos se o jogador estiver ativo
+                fxManager.triggerShake(itemType === 'aicars' || itemType === 'obstacle' ? 0.6 : 0.3);
+                const sparkPosition = player.mesh.position.clone().lerp(item.position, 0.3);
+                sparkPosition.y = Math.max(player.mesh.position.y, item.position.y); // Faíscas na altura do objeto mais alto
+                fxManager.triggerSparks(sparkPosition);
+            }
+            scene.remove(item);
+            if(item.geometry) item.geometry.dispose();
+            if(item.material) {
+                if(Array.isArray(item.material)) {
+                    item.material.forEach(m => m.dispose());
+                } else {
+                    item.material.dispose();
+                }
+            }
+            // Se o item for um Group (carros IA), dispose dos filhos também
+            if (item.isGroup) {
+                item.traverse(child => {
+                    if (child.isMesh) {
+                        if (child.geometry) child.geometry.dispose();
+                        if (child.material) {
+                             if (Array.isArray(child.material)) {
+                                child.material.forEach(mat => mat.dispose());
+                            } else {
+                                child.material.dispose();
+                            }
+                        }
+                    }
+                });
+            }
+            arr.splice(index, 1);
+        };
+
+        updateItems(obstaculos, faseConfig, playerBoxes, (p, obs, arr, i) => {
+            soundManager.playCrash();
+            if(p.hasShield) {
+                p.hasShield=false;
+                handleCollision(p, obs, arr, i, true, 'obstacle');
+            } else {
+                if(p.ativo) { // Só desativar se estiver ativo
+                    p.ativo=false; p.mesh.visible=false; soundManager.stopEngineSound(p.engineSound);
+                }
+                handleCollision(p, obs, arr, i, true, 'obstacle');
+            }
+        });
+        updateItems(coletaveis, faseConfig, playerBoxes, (p, col, arr, i) => {
+            soundManager.playCollect(); p.pontos += 10;
+            handleCollision(p, col, arr, i, false, 'collectible');
+        });
+        updateItems(powerups, faseConfig, playerBoxes, (p, pow, arr, i) => {
+            soundManager.playShield(); p.hasShield = true;
+            handleCollision(p, pow, arr, i, false, 'powerup');
+        });
+        updateItems(aiCars, faseConfig, playerBoxes, (p, car, arr, i) => {
+            soundManager.playCrash();
+            if(p.hasShield) {
+                p.hasShield=false;
+                handleCollision(p, car, arr, i, true, 'aicars');
+            } else {
+                if(p.ativo){
+                    p.ativo=false; p.mesh.visible=false; soundManager.stopEngineSound(p.engineSound);
+                }
+                handleCollision(p, car, arr, i, true, 'aicars');
+            }
+        });
+        updateItems(turbos, faseConfig, playerBoxes, (p, tur, arr, i) => {
+            soundManager.playTurbo(); p.turboTimer = 3;
+            handleCollision(p, tur, arr, i, false, 'turbo');
+        });
+        updateItems(emps, faseConfig, playerBoxes, (p, empItem, arr, i) => {
+            if (p.ativo) fxManager.triggerEMP(p.mesh.position);
+            jogadores.forEach(otherPlayer => { if(otherPlayer !== p) { otherPlayer.isEmpd = true; otherPlayer.empTimer = 2; }});
+            handleCollision(p, empItem, arr, i, false, 'emp');
+        });
+
+        atualizarUI();
+
+        const pontuacaoTotal = jogadores.reduce((acc, p) => acc + p.pontos, 0);
+        if (pontuacaoTotal >= faseConfig.oP) { quizManager.startPhaseQuiz(); }
+        if (jogadores.length > 0 && jogadores.every(p => !p.ativo)) { showSaveScoreModal(pontuacaoTotal, "Fim de jogo: pilotos eliminados!"); }
+    }
+
+    function atualizarUI() {
+        const faseConfig = FASES[faseAtual];
+        if (!faseConfig) return;
+        const pontuacaoTotal = jogadores.reduce((acc, p) => acc + p.pontos, 0);
+        faseAtualEl.textContent = faseConfig.nivel;
+        metaPontosEl.textContent = faseConfig.oP;
+        pontuacaoTotalEl.textContent = pontuacaoTotal;
+        tempoCorridaEl.textContent = phaseTimer.toFixed(2);
+        playerScoresContainer.innerHTML = '';
+        jogadores.forEach(p => {
+            const corHex = '#' + new THREE.Color(p.cor).getHexString();
+            const scoreDiv = document.createElement('div');
+            let playerStateClasses = 'border-gray-700'; // Default border
+            if (p.isEmpd) {
+                playerStateClasses = 'animate-pulse bg-purple-900 border-purple-500';
+            } else if (!p.ativo) {
+                playerStateClasses = 'bg-red-900 bg-opacity-80 border-red-700 opacity-70';
+            } else if (p.hasShield) {
+                // Estilo para escudo ativo: borda azul brilhante e um leve brilho de fundo
+                playerStateClasses = 'bg-blue-800 bg-opacity-40 border-sky-400 shadow-lg shadow-sky-500/40';
+            } else {
+                playerStateClasses = 'bg-black bg-opacity-60 border-gray-700';
+            }
+            scoreDiv.className = `p-2 rounded-lg text-white text-center transition-all duration-300 flex-1 max-w-xs border-2 ${playerStateClasses}`;
+            scoreDiv.innerHTML = `
+                <div class="flex items-center justify-center gap-2">
+                    <span class="font-bold" style="color: ${corHex};">P${p.id}</span>
+                    <span class="font-black text-lg">${Math.floor(p.pontos)}</span>
+                </div>
+                <div class="h-5 mt-1 flex items-center justify-center text-xs font-bold gap-2">
+                    ${p.hasShield ? `<span class="text-blue-300 bg-blue-800 bg-opacity-70 px-2 py-0.5 rounded">ESCUDO</span>` : ''}
+                    ${p.turboTimer > 0 ? `<span class="text-orange-300 bg-orange-800 bg-opacity-70 px-2 py-0.5 rounded animate-pulse">TURBO</span>` : ''}
+                    ${p.isDrifting ? `<span class="text-pink-300 bg-pink-800 bg-opacity-70 px-2 py-0.5 rounded">DRIFT</span>` : ''}
+                </div>`;
+            playerScoresContainer.appendChild(scoreDiv);
+        });
+
+        const player1 = jogadores.find(p => p.ativo);
+        const speed = player1 ? (player1.velocidade * (player1.turboTimer > 0 ? 2 : 1) * 120) : 0;
+        speedometerEl.textContent = `${Math.floor(speed)} KM/H`;
+    }
+
+    init();
+
+</script>
+
+</body>
+</html>
